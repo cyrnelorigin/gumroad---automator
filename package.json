@@ -1,0 +1,17 @@
+{
+  "name": "gumroad-automator",
+  "version": "1.0.0",
+  "description": "Serverless function to process Gumroad sales for Cyrnel Origin.",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No test specified\""
+  },
+  "dependencies": {
+    "@slack/webhook": "^7.0.0",
+    "axios": "^1.7.2",
+    "resend": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

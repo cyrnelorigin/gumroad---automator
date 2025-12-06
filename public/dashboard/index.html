@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8fafc;
+        }
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-value {
+            font-size: 2.8em;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #4f46e5;
+        }
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .sales-table-container {
+            padding: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th {
+            background: #f1f5f9;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        tr:hover {
+            background: #f8fafc;
+        }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        .status-success {
+            background: #10b981;
+            color: white;
+        }
+        .status-pending {
+            background: #f59e0b;
+            color: white;
+        }
+        .status-failed {
+            background: #ef4444;
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        .refresh-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            transition: background 0.3s;
+        }
+        .refresh-btn:hover {
+            background: #4338ca;
+        }
+        .error-alert {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+            display: none;
+        }
+        .timestamp {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>📊 Sales Dashboard</h1>
+            <p>Real-time monitoring of your sales performance</p>
+        </div>
+        
+        <div class="error-alert" id="errorAlert"></div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value" id="totalRevenue">R 0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Sales</div>
+                <div class="stat-value" id="totalSales">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-value" id="successRate">0%</div>
+            </div>
+        </div>
+        
+        <div class="sales-table-container">
+            <h2>Recent Transactions</h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer Email</th>
+                            <th>Business URL</th>
+                            <th>Amount</th>
+                            <th>Time</th>
+                            <th>Audit Status</th>
+                            <th>Email Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesBody">
+                        <!-- Loading row added here -->
+                        <tr id="loadingRow">
+                            <td colspan="7" style="text-align: center; color: #aaa; padding: 40px;">
+                                <div style="display: inline-block; animation: pulse 1.5s infinite;">
+                                    📊 Loading sales data...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <button class="refresh-btn" onclick="loadDashboard()">
+                🔄 Refresh Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const DASHBOARD_SECRET_KEY = '@Co018182025'; // Consider moving to Netlify build env variables
+        const API_URL = '/.netlify/functions/get-dashboard';
+        
+        // Format currency
+        function formatCurrency(amount) {
+            return 'R ' + parseFloat(amount).toLocaleString('en-ZA', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorAlert = document.getElementById('errorAlert');
+            errorAlert.textContent = message;
+            errorAlert.style.display = 'block';
+            setTimeout(() => {
+                errorAlert.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString || dateString === 'Pending') return dateString;
+            return dateString;
+        }
+        
+        // Load dashboard data
+        async function loadDashboard() {
+            const loadingRow = document.getElementById('loadingRow');
+            loadingRow.style.display = 'table-row';
+            
+            try {
+                const response = await fetch(`${API_URL}?key=${encodeURIComponent(DASHBOARD_SECRET_KEY)}`);
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Unauthorized: Check your dashboard key');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Hide loading row
+                loadingRow.style.display = 'none';
+                
+                // Update summary stats
+                document.getElementById('totalRevenue').textContent = 
+                    formatCurrency(data.summary.totalRevenue);
+                document.getElementById('totalSales').textContent = 
+                    data.summary.totalSales.toLocaleString();
+                document.getElementById('successRate').textContent = 
+                    data.summary.successRate + '%';
+                
+                // Update sales table
+                const salesBody = document.getElementById('salesBody');
+                salesBody.innerHTML = '';
+                
+                if (data.recentSales.length === 0) {
+                    salesBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #64748b; padding: 40px;">
+                                No sales data found. Process a test sale to see data here.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                data.recentSales.forEach(sale => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine status badges
+                    const auditStatus = sale.auditGenerated ? 
+                        '<span class="status-badge status-success">Generated</span>' : 
+                        '<span class="status-badge status-pending">Pending</span>';
+                    
+                    const emailStatus = sale.emailDelivered ? 
+                        '<span class="status-badge status-success">Delivered</span>' : 
+                        '<span class="status-badge status-pending">Sending</span>';
+                    
+                    row.innerHTML = `
+                        <td><strong>${sale.orderId}</strong></td>
+                        <td>${sale.customerEmail}</td>
+                        <td><a href="${sale.businessUrl}" target="_blank">${sale.businessUrl}</a></td>
+                        <td><strong>${formatCurrency(sale.amount)}</strong></td>
+                        <td class="timestamp">${formatDate(sale.time)}</td>
+                        <td>${auditStatus}</td>
+                        <td>${emailStatus}</td>
+                    `;
+                    
+                    salesBody.appendChild(row);
+                });
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                loadingRow.style.display = 'none';
+                showError(`Error: ${error.message}. Check console for details.`);
+                
+                // Show error in table
+                const salesBody = document.getElementById('salesBody');
+                salesBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #dc2626; padding: 40px;">
+                            ❌ Failed to load data: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Load dashboard on page load
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
